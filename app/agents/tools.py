@@ -1,21 +1,49 @@
+
 from app.config import ENABLE_WEB_SEARCH
 
-def web_search(query: str) -> str:
-    """Search the public web for recent information related to a research topic."""
+
+def web_search(query: str, recency_days: int = 365) -> str:
+    """Search the public web for research information."""
+
     if not ENABLE_WEB_SEARCH:
         return "Web search is disabled in configuration."
+
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
+
+        if recency_days <= 1:
+            timelimit = "d"
+        elif recency_days <= 7:
+            timelimit = "w"
+        elif recency_days <= 30:
+            timelimit = "m"
+        else:
+            timelimit = "y"
+
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=5))
+            results = list(
+                ddgs.text(
+                    query,
+                    max_results=5,
+                    timelimit=timelimit
+                )
+            )
+
         if not results:
-            return "No search results found. Continue with general knowledge and clearly flag uncertainty."
+            return "No search results found."
+
         lines = []
         for i, item in enumerate(results, 1):
-            title = item.get("title", "Untitled")
-            body = item.get("body", "")
-            href = item.get("href", "")
-            lines.append(f"{i}. {title}\\n{body}\\nURL: {href}")
-        return "\\n\\n".join(lines)
+            lines.append(
+                f"{i}. {item.get('title', 'Untitled')}\n"
+                f"{item.get('body', '')}\n"
+                f"URL: {item.get('href', '')}"
+            )
+
+        return "\n\n".join(lines)
+
     except Exception as exc:
-        return f"Web search unavailable ({type(exc).__name__}). Continue cautiously and note that live search failed."
+        return (
+            f"Web search unavailable ({type(exc).__name__}). "
+            "Live search failed; continue cautiously."
+        )
